@@ -14,47 +14,43 @@ client = Client(API_KEY, API_SECRET)
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # ഡാറ്റ കിട്ടുന്നുണ്ടോ എന്ന് പരിശോധിക്കുന്നു
-        raw_data = request.data.decode('utf-8').strip()
+        # ഡാറ്റ എങ്ങനെ വന്നാലും അത് വായിക്കുന്നു
+        raw_data = request.get_data(as_text=True).strip()
         print(f"Raw data received: {raw_data}")
 
-        # JSON ആയി വായിക്കാൻ ശ്രമിക്കുന്നു, പരാജയപ്പെട്ടാൽ സാധാരണ ടെക്സ്റ്റ് ആയി എടുക്കുന്നു
-        try:
-            data = json.loads(raw_data)
-        except:
-            data = {"side": raw_data.lower()}
+        # 'buy' അല്ലെങ്കിൽ 'sell' എന്ന് മാത്രമാണോ വന്നതെന്ന് നോക്കുന്നു
+        if 'buy' in raw_data.lower():
+            side = 'BUY'
+        elif 'sell' in raw_data.lower():
+            side = 'SELL'
+        else:
+            # JSON ആയി വന്നാൽ അത് വായിക്കുന്നു
+            try:
+                data = json.loads(raw_data)
+                side = data.get('side', '').upper()
+            except:
+                return jsonify({"status": "error", "message": "Invalid format"}), 400
 
-        print(f"Processed Data: {data}")
-        side = data.get('side', '').upper()
         symbol = "ETHUSDT"
-        
         if side == "BUY":
-            print(f"Executing BUY order for {symbol}...")
-            order = client.create_order(
-                symbol=symbol,
-                side='BUY',
-                type='MARKET',
-                quoteOrderQty=10
-            )
+            print(f"Executing BUY order...")
+            order = client.create_order(symbol=symbol, side='BUY', type='MARKET', quoteOrderQty=10)
             print("Order Success!")
-        
         elif side == "SELL":
             balance = client.get_asset_balance(asset='ETH')
             qty = float(balance['free'])
             if qty > 0:
-                print(f"Executing SELL order for {qty} ETH...")
                 order = client.create_order(symbol=symbol, side='SELL', type='MARKET', quantity=qty)
                 print("Order Success!")
             else:
-                return jsonify({"status": "error", "message": "No balance"}), 400
+                return jsonify({"status": "error", "message": "No ETH balance"}), 400
 
         return jsonify({"status": "success"}), 200
 
     except Exception as e:
-        print(f"Error occurred: {str(e)}")
+        print(f"Error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
-    # Render നൽകുന്ന പോർട്ട് ഉപയോഗിക്കുന്നു
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
