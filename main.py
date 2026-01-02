@@ -13,14 +13,14 @@ client = Client(API_KEY, API_SECRET)
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # TradingView-ൽ നിന്നുള്ള മെസ്സേജ് സ്വീകരിക്കുന്നു
-        data = request.get_json()
+        # force=True നൽകുന്നത് തെറ്റായ ഫോർമാറ്റുകളെപ്പോലും വായിക്കാൻ സഹായിക്കും
+        data = request.get_json(force=True)
         
         if not data:
-            print("Error: No Data Received")
-            return jsonify({"status": "error", "message": "No Data"}), 400
-            
-        print(f"Signal Received: {data}") # ഇത് ലോഗിൽ കാണാൻ സാധിക്കും
+            print("Received empty or invalid data")
+            return "Invalid Data", 400
+
+        print(f"Data received successfully: {data}") # ഇത് ലോഗിൽ കാണാൻ സാധിക്കും
 
         side = data.get('side').upper()
         symbol = "ETHUSDT"
