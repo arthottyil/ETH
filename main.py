@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from binance.client import Client
-import json
 import os
 
 app = Flask(__name__)
@@ -14,38 +13,32 @@ client = Client(API_KEY, API_SECRET)
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # ഡാറ്റ എങ്ങനെ വന്നാലും അത് വായിക്കുന്നു
-        raw_data = request.get_data(as_text=True).strip()
+        # ഡാറ്റ JSON ആയിട്ടല്ലെങ്കിൽ വെറും ടെക്സ്റ്റ് ആയി എടുക്കുന്നു
+        raw_data = request.get_data(as_text=True).lower()
         print(f"Raw data received: {raw_data}")
 
-        # 'buy' അല്ലെങ്കിൽ 'sell' എന്ന് മാത്രമാണോ വന്നതെന്ന് നോക്കുന്നു
-        if 'buy' in raw_data.lower():
-            side = 'BUY'
-        elif 'sell' in raw_data.lower():
-            side = 'SELL'
-        else:
-            # JSON ആയി വന്നാൽ അത് വായിക്കുന്നു
-            try:
-                data = json.loads(raw_data)
-                side = data.get('side', '').upper()
-            except:
-                return jsonify({"status": "error", "message": "Invalid format"}), 400
-
         symbol = "ETHUSDT"
-        if side == "BUY":
-            print(f"Executing BUY order...")
+        
+        # ഡാറ്റയിൽ 'buy' എന്ന വാക്കുണ്ടോ എന്ന് നോക്കുന്നു
+        if 'buy' in raw_data:
+            print("Executing BUY order...")
             order = client.create_order(symbol=symbol, side='BUY', type='MARKET', quoteOrderQty=10)
-            print("Order Success!")
-        elif side == "SELL":
+            return jsonify({"status": "success", "action": "buy"}), 200
+            
+        # ഡാറ്റയിൽ 'sell' എന്ന വാക്കുണ്ടോ എന്ന് നോക്കുന്നു
+        elif 'sell' in raw_data:
             balance = client.get_asset_balance(asset='ETH')
             qty = float(balance['free'])
             if qty > 0:
+                print(f"Executing SELL order for {qty} ETH...")
                 order = client.create_order(symbol=symbol, side='SELL', type='MARKET', quantity=qty)
-                print("Order Success!")
+                return jsonify({"status": "success", "action": "sell"}), 200
             else:
-                return jsonify({"status": "error", "message": "No ETH balance"}), 400
-
-        return jsonify({"status": "success"}), 200
+                return jsonify({"status": "error", "message": "No balance"}), 200
+        
+        else:
+            print("No valid command found in data")
+            return jsonify({"status": "ignored"}), 200
 
     except Exception as e:
         print(f"Error: {str(e)}")
