@@ -5,8 +5,8 @@ import os
 app = Flask(__name__)
 
 # Binance Keys
-API_KEY = 'നിങ്ങളുടെ_API_KEY'
-API_SECRET = 'നിങ്ങളുടെ_API_SECRET'
+API_KEY = 'zXB5QTfURCXjnaV88to695fTqdQwBnApodwLuyl9szMISgze90cdTDFXkbYAdpsD'
+API_SECRET = 'BIAuNJJN9N81GNpm5btLiRXYJghsK8CGjYNlc5W439Iou7BvcXVd8H53aamQAD20'
 
 client = Client(API_KEY, API_SECRET)
 
