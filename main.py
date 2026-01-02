@@ -12,38 +12,32 @@ client = Client(API_KEY, API_SECRET)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    try:
-        # ഡാറ്റ JSON ആയിട്ടല്ലെങ്കിൽ വെറും ടെക്സ്റ്റ് ആയി എടുക്കുന്നു
-        raw_data = request.get_data(as_text=True).lower()
-        print(f"Raw data received: {raw_data}")
+    # ഡാറ്റ എന്ത് വന്നാലും എറർ അടിക്കാതെ സ്വീകരിക്കുന്നു
+    raw_data = request.get_data(as_text=True).lower()
+    print(f"Signal Received: {raw_data}")
 
-        symbol = "ETHUSDT"
-        
-        # ഡാറ്റയിൽ 'buy' എന്ന വാക്കുണ്ടോ എന്ന് നോക്കുന്നു
+    symbol = "ETHUSDT"
+    
+    try:
         if 'buy' in raw_data:
-            print("Executing BUY order...")
-            order = client.create_order(symbol=symbol, side='BUY', type='MARKET', quoteOrderQty=10)
-            return jsonify({"status": "success", "action": "buy"}), 200
-            
-        # ഡാറ്റയിൽ 'sell' എന്ന വാക്കുണ്ടോ എന്ന് നോക്കുന്നു
+            print("Processing BUY...")
+            client.create_order(symbol=symbol, side='BUY', type='MARKET', quoteOrderQty=10)
+            return "Success Buy", 200
         elif 'sell' in raw_data:
+            print("Processing SELL...")
             balance = client.get_asset_balance(asset='ETH')
             qty = float(balance['free'])
             if qty > 0:
-                print(f"Executing SELL order for {qty} ETH...")
-                order = client.create_order(symbol=symbol, side='SELL', type='MARKET', quantity=qty)
-                return jsonify({"status": "success", "action": "sell"}), 200
-            else:
-                return jsonify({"status": "error", "message": "No balance"}), 200
-        
-        else:
-            print("No valid command found in data")
-            return jsonify({"status": "ignored"}), 200
-
+                client.create_order(symbol=symbol, side='SELL', type='MARKET', quantity=qty)
+                return "Success Sell", 200
+            return "No Balance", 200
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 400
+        print(f"Binance Error: {str(e)}")
+        return str(e), 200 # എറർ വന്നാലും 200 നൽകുന്നു (400 ഒഴിവാക്കാൻ)
+
+    return "Ignored", 200
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
+    # Render-ൽ 10000 ആണ് സാധാരണ പോർട്ട്
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
