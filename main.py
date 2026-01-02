@@ -1,59 +1,65 @@
-from flask import Flask, request, jsonify  # 'from' ചെറിയ അക്ഷരത്തിൽ
+from flask import Flask, request, jsonify
 from binance.client import Client
-import json
+import os
 
 app = Flask(__name__)
 
-API_KEY = 'zXB5QTfURCXjnaV88to695fTqdQwBnApodwLuyl9szMISgze90cdTDFXkbYAdpsD'
-API_SECRET = 'BIAuNJJN9N81GNpm5btLiRXYJghsK8CGjYNlc5W439Iou7BvcXVd8H53aamQAD20'
+# Binance Keys
+API_KEY = 'നിങ്ങളുടെ_API_KEY'
+API_SECRET = 'നിങ്ങളുടെ_API_SECRET'
 
 client = Client(API_KEY, API_SECRET)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # JSON ഡാറ്റ നേരിട്ട് എടുക്കുന്നു
-        data = request.get_json() 
+        # TradingView-ൽ നിന്നുള്ള മെസ്സേജ് സ്വീകരിക്കുന്നു
+        data = request.get_json()
+        
         if not data:
-            print("No JSON data received")
-            return jsonify({"status": "error", "message": "Missing JSON"}), 400
+            print("Error: No Data Received")
+            return jsonify({"status": "error", "message": "No Data"}), 400
             
-        print(f"Received data: {data}") # ലോഗിൽ ഡാറ്റ കാണാൻ ഇത് സഹായിക്കും
+        print(f"Signal Received: {data}") # ഇത് ലോഗിൽ കാണാൻ സാധിക്കും
 
         side = data.get('side').upper()
         symbol = "ETHUSDT"
         
         if side == "BUY":
-            print(f"Executing BUY order for {symbol}...")
+            print("Processing BUY Order...")
             order = client.create_order(
                 symbol=symbol,
                 side='BUY',
                 type='MARKET',
-                quoteOrderQty=10
+                quoteOrderQty=10 # 10 USDT-ക്ക് വാങ്ങുന്നു
             )
-        
-        elif side == "SELL":
-            balance = client.get_asset_balance(asset='ETH')
-            quantity_to_sell = float(balance['free'])
+            print("BUY Order Successful")
             
-            if quantity_to_sell > 0:
-                print(f"Executing SELL order for {quantity_to_sell} ETH...")
+        elif side == "SELL":
+            print("Processing SELL Order...")
+            balance = client.get_asset_balance(asset='ETH')
+            qty = float(balance['free'])
+            
+            # ബൈനൻസിലെ ലോട്ടറി സൈസ് അനുസരിച്ച് അളവ് ക്രമീകരിക്കുന്നു (ഉദാ: 4 ഡെസിമൽ)
+            qty = floor(qty * 10000) / 10000 
+            
+            if qty > 0.0001: # വിൽക്കാൻ മിനിമം ബാലൻസ് ഉണ്ടോ എന്ന് നോക്കുന്നു
                 order = client.create_order(
                     symbol=symbol,
                     side='SELL',
                     type='MARKET',
-                    quantity=quantity_to_sell
+                    quantity=qty
                 )
+                print("SELL Order Successful")
             else:
-                return jsonify({"status": "error", "message": "No ETH balance"}), 400
+                print("Error: Insufficient ETH Balance to Sell")
 
         return jsonify({"status": "success"}), 200
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Final Error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
